@@ -81,6 +81,7 @@ endif()
 
 if (METAL_FOUND AND NOT NO_METAL)
     add_subdirectory(mtlViewer)
+    add_subdirectory(mtlEvalLimit)
     if(PTEX_FOUND)
         add_subdirectory(mtlPtexViewer)
     endif()
