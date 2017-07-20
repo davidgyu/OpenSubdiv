@@ -37,6 +37,7 @@ struct PerFrameConstants {
 
 struct FragmentData {
     float4 clipPosition [[position]];
+    float pointSize [[point_size]];
     float4 color;
 };
 
@@ -62,6 +63,7 @@ vertex FragmentData vertex_main(
 
     FragmentData out;
     out.clipPosition = frameConsts.ProjectionMatrix * frameConsts.ModelViewMatrix * float4(position, 1);
+    out.pointSize = 2.0f;
 
     float3 normal = (frameConsts.ModelViewMatrix * float4(normalize(cross(du, dv)), 0)).xyz;
 

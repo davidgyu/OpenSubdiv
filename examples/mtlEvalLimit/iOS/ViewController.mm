@@ -29,10 +29,14 @@
 -(void)drawInMTKView:(MTKView *)view {
     dispatch_semaphore_wait(_frameSemaphore, DISPATCH_TIME_FOREVER);
     auto commandBuffer = [_commandQueue commandBuffer];
-    [[_osdRenderer drawFrame:commandBuffer] endEncoding];
+
+    unsigned frameIndex = _currentFrame % FRAME_HISTORY;
+
+    auto renderEncoder = [_osdRenderer drawFrame:commandBuffer
+                                       frameBeginTimestamp:_frameTimes[frameIndex]];
+    [renderEncoder endEncoding];
     
     __weak auto blockSemaphore = _frameSemaphore;
-    unsigned frameIndex = _currentFrame % FRAME_HISTORY;
     const auto beginTime = CACurrentMediaTime();
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull c) {
         dispatch_semaphore_signal(blockSemaphore);
@@ -89,12 +93,8 @@
 
 -(void)_applyOptions {
     _osdRenderer.useSingleCrease = _singleCreaseSwitch.isOn;
-    _osdRenderer.usePatchBackfaceCulling = _backpatchCullingSwitch.isOn;
-    _osdRenderer.usePrimitiveBackfaceCulling = _backfaceCullingSwitch.isOn;
-    _osdRenderer.displayStyle = _wireframeSwitch.isOn ? kDisplayStyleWireOnShaded : kDisplayStyleShaded;
     _osdRenderer.displayControlMeshVertices = _controlMeshSwitch.isOn;
     _osdRenderer.displayControlMeshEdges = _controlMeshSwitch.isOn;
-    _osdRenderer.usePatchClipCulling = _patchClipCullingSwitch.isOn;
     _osdRenderer.useRandomStart = true;
     _osdRenderer.useAdaptive = true;
     _osdRenderer.freeze = true;
@@ -189,21 +189,21 @@
 
 - (IBAction)switchChanged:(UISwitch *)sender {
     if(sender == _wireframeSwitch) {
-        _osdRenderer.displayStyle = _wireframeSwitch.isOn ? kDisplayStyleWireOnShaded : kDisplayStyleShaded;
+        //_osdRenderer.displayStyle = _wireframeSwitch.isOn ? kDisplayStyleWireOnShaded : kDisplayStyleShaded;
     } else if(sender == _backpatchCullingSwitch) {
-        _osdRenderer.usePatchBackfaceCulling = sender.isOn;
+        //_osdRenderer.usePatchBackfaceCulling = sender.isOn;
     } else if(sender == _backfaceCullingSwitch) {
-        _osdRenderer.usePrimitiveBackfaceCulling = sender.isOn;
+        //_osdRenderer.usePrimitiveBackfaceCulling = sender.isOn;
     } else if(sender == _patchClipCullingSwitch) {
-        _osdRenderer.usePatchClipCulling = sender.isOn;
+        //_osdRenderer.usePatchClipCulling = sender.isOn;
     } else if(sender == _singleCreaseSwitch) {
         _osdRenderer.useSingleCrease = sender.isOn;
     } else if(sender == _controlMeshSwitch) {
         _osdRenderer.displayControlMeshEdges = sender.isOn;
         _osdRenderer.displayControlMeshVertices = sender.isOn;
     } else if(sender == _screenspaceTessellationSwitch) {
-        _osdRenderer.useScreenspaceTessellation = sender.isOn;
-        _osdRenderer.useFractionalTessellation = _osdRenderer.useScreenspaceTessellation;
+        //_osdRenderer.useScreenspaceTessellation = sender.isOn;
+        //_osdRenderer.useFractionalTessellation = _osdRenderer.useScreenspaceTessellation;
     }
 }
 
@@ -219,7 +219,7 @@
     if(pickerView == _modelPickerView) {
         return _osdRenderer.loadedModels.count;
     } else if(pickerView == _shadingModePickerView) {
-        return 4;
+        return 6;
     }
     return 0;
 }
