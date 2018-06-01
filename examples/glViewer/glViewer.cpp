@@ -1039,6 +1039,7 @@ bindProgram(Effect effect,
     if (uniformDiffuseColor >= 0)
         glUniform4f(uniformDiffuseColor, 0.4f, 0.4f, 0.8f, 1);
 
+
     // return primtype
     GLenum primType;
     switch(effectDesc.desc.GetType()) {
@@ -1632,6 +1633,7 @@ callbackErrorGLFW(int error, const char* description) {
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
+    Scheme defaultScheme = kCatmark;
     std::string str;
     std::vector<char const *> animobjs;
 
@@ -1651,6 +1653,15 @@ int main(int argc, char ** argv) {
         else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
         }
+        else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        }
+        else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        }
+        else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
+        }
         else {
             std::ifstream ifs(argv[1]);
             if (ifs) {
@@ -1658,7 +1669,7 @@ int main(int argc, char ** argv) {
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), defaultScheme));
             }
         }
     }

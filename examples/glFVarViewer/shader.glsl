@@ -218,6 +218,66 @@ interpolateFaceVarying(vec2 uv, int fvarOffset)
     return result;
 }
 
+uniform samplerBuffer OsdFVarFaceBuffer;
+
+vec2
+normalizeTriangle(ivec3 patchParam, vec2 uv)
+{
+    int paramFactor = 1 << OsdGetPatchRefinementLevel(patchParam);
+    float frac = float(paramFactor);
+
+    ivec2 p = OsdGetPatchFaceUV(patchParam);
+
+    if ((p[0] + p[1]) >= paramFactor) {
+        uv = (vec2(paramFactor) - p) - (uv * vec2(frac));
+    } else {
+        uv = (uv * vec2(frac)) - p;
+    }
+
+    return uv;
+}
+
+vec2
+unnormalizeTriangle(ivec3 patchParam, vec2 uv)
+{
+    int paramFactor = 1 << OsdGetPatchRefinementLevel(patchParam);
+    float fracInv = 1.0f / paramFactor;
+
+    ivec2 p = OsdGetPatchFaceUV(patchParam);
+
+    if ((p[0] + p[1]) >= paramFactor) {
+        uv = ((vec2(paramFactor) - p) - uv) * vec2(fracInv);
+    } else {
+        uv = (uv + p) * vec2(fracInv);
+    }
+
+    return uv;
+}
+
+vec2
+interpolateFaceVaryingBarycentric(vec3 uvw)
+{
+    int patchIndex = OsdGetPatchIndex(gl_PrimitiveID);
+    ivec3 fvarPatchParam = texelFetch(OsdFVarParamBuffer, patchIndex).xyz;
+
+    vec2 uv = unnormalizeTriangle(fvarPatchParam, uvw.xy);
+
+    int patchCVs = 3;
+    int patchFace = OsdGetPatchFaceId(fvarPatchParam);
+
+    float Pw[3] = float[3](1.0f-uv[0]-uv[1], uv[0], uv[1]);
+
+    vec2 result = vec2(0);
+    for (int i=0; i<patchCVs; ++i) {
+        int index = (patchFace*patchCVs + i) * 2;
+        vec2 cv = vec2(texelFetch(OsdFVarFaceBuffer, index).s,
+                       texelFetch(OsdFVarFaceBuffer, index + 1).s);
+        result += Pw[i] * cv;
+    }
+
+    return result;
+}
+
 void emit(int index, vec3 normal)
 {
     outpt.v.position = inpt[index].v.position;
@@ -228,8 +288,13 @@ void emit(int index, vec3 normal)
 #endif
 
 #ifdef LOOP  // ----- scheme : LOOP
-    vec2 uv;
-    OSD_COMPUTE_FACE_VARYING_TRI_2(uv, /*fvarOffste=*/0, index);
+#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+    vec3 tristq[3] = vec3[](vec3(0,0,1), vec3(1,0,0), vec3(0,1,0));
+    vec3 stq = tristq[index];
+#else
+    vec3 stq = inpt[index].v.tessCoord; // expected error w/o triangle tess
+#endif
+    vec2 uv = interpolateFaceVaryingBarycentric(stq);
 
 #else        // ----- scheme : CATMARK / BILINEAR
 

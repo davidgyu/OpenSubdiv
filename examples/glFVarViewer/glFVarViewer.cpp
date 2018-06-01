@@ -143,7 +143,7 @@ struct Program {
 struct FVarData
 {
     FVarData() :
-        textureBuffer(0), textureParamBuffer(0) {
+        textureBuffer(0), textureParamBuffer(0), textureFaceBuffer(0) {
     }
     ~FVarData() {
         Release();
@@ -155,6 +155,9 @@ struct FVarData
         if (textureParamBuffer)
             glDeleteTextures(1, &textureParamBuffer);
         textureParamBuffer = 0;
+        if (textureFaceBuffer)
+            glDeleteTextures(1, &textureFaceBuffer);
+        textureFaceBuffer = 0;
     }
     void Create(OpenSubdiv::Far::TopologyRefiner const *refiner,
                 OpenSubdiv::Far::PatchTable const *patchTable,
@@ -244,8 +247,35 @@ struct FVarData
         glBindTexture(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
+
+        int numFaces = refiner->GetLevel(0).GetNumFaces();
+        std::vector<float> faceData;
+
+        for (int face = 0; face < numFaces; ++face) {
+            Far::ConstIndexArray faceValues = refiner->GetLevel(0).GetFaceFVarValues(face, fvarChannel);
+            int numFaceVerts = faceValues.size();
+            for (int faceVert=0; faceVert<numFaceVerts; ++faceVert) {
+                for (int i = 0; i < fvarWidth; ++i) {
+                    faceData.push_back(
+                        fvarSrcData[faceValues[faceVert]*fvarWidth+i]);
+                }
+            }
+        }
+
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, faceData.size()*sizeof(float),
+                     &faceData[0], GL_STATIC_DRAW);
+
+        glGenTextures(1, &textureFaceBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, textureFaceBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
     }
-    GLuint textureBuffer, textureParamBuffer;
+    GLuint textureBuffer, textureParamBuffer, textureFaceBuffer;
 } g_fvarData;
 
 //------------------------------------------------------------------------------
@@ -697,6 +727,9 @@ public:
         if ((loc = glGetUniformLocation(program, "OsdFVarParamBuffer")) != -1) {
             glUniform1i(loc, 2); // GL_TEXTURE2
         }
+        if ((loc = glGetUniformLocation(program, "OsdFVarFaceBuffer")) != -1) {
+            glUniform1i(loc, 3); // GL_TEXTURE3
+        }
 
 
         return config;
@@ -753,6 +786,8 @@ bindTextures() {
     glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureBuffer);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureParamBuffer);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureFaceBuffer);
 
     glActiveTexture(GL_TEXTURE0);
 }
@@ -1196,6 +1231,7 @@ parseIntArg(const char* argString, int dfltValue = 0) {
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
+    Scheme defaultScheme = kCatmark;
     std::string str;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-d")) {
@@ -1204,6 +1240,12 @@ int main(int argc, char ** argv) {
             if (++i < argc) g_repeatCount = parseIntArg(argv[i], g_repeatCount);
         } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
+        } else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        } else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        } else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
         } else if (argv[i][0] == '-') {
             printf("Warning: unrecognized option '%s' ignored\n", argv[i]);
         } else {
@@ -1213,7 +1255,7 @@ int main(int argc, char ** argv) {
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
             } else {
                 printf("Warning: cannot open shape file '%s'\n", argv[i]);
             }
