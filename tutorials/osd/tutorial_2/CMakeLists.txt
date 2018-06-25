@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2016 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,23 +22,22 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(TUTORIALS
-    tutorial_0
-    tutorial_1
-    tutorial_2
+set(SOURCE_FILES
+    osd_tutorial_2.cpp
 )
 
-foreach(tutorial ${TUTORIALS})
+include_directories("${OPENSUBDIV_INCLUDE_DIR}")
 
-    add_subdirectory("${tutorial}")
 
-    list(APPEND TUTORIAL_TARGETS "osd_${tutorial}")
-
-endforeach()
-
-add_custom_target(osd_tutorials DEPENDS ${TUTORIAL_TARGETS})
-
-set_target_properties(osd_tutorials
-    PROPERTIES 
-        FOLDER "tutorials/osd"
+_add_executable(osd_tutorial_2 "tutorials/osd"
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_far_utils_obj>
 )
+
+
+target_link_libraries(osd_tutorial_2
+    osd_static_cpu
+)
+
+install(TARGETS osd_tutorial_2 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
