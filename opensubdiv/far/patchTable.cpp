@@ -435,10 +435,19 @@ PatchTable::IsFeatureAdaptive() const {
 
 PatchDescriptor
 PatchTable::GetVaryingPatchDescriptor() const {
+    if (_isUniformLinear) {
+        // vertex and varying patch indices are identical
+        // for a uniform linear patch table.
+        assert(GetNumPatchArrays() == 1);
+        return GetPatchArrayDescriptor(0);
+    }
     return _varyingDesc;
 }
 ConstIndexArray
 PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
+    if (_isUniformLinear) {
+        return GetPatchVertices(handle);
+    }
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -448,6 +457,9 @@ PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
 }
 ConstIndexArray
 PatchTable::GetPatchVaryingVertices(int array, int patch) const {
+    if (_isUniformLinear) {
+        return GetPatchVertices(array, patch);
+    }
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -458,6 +470,9 @@ PatchTable::GetPatchVaryingVertices(int array, int patch) const {
 }
 ConstIndexArray
 PatchTable::GetPatchArrayVaryingVertices(int array) const {
+    if (_isUniformLinear) {
+        return GetPatchArrayVertices(array);
+    }
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -469,6 +484,10 @@ PatchTable::GetPatchArrayVaryingVertices(int array) const {
 }
 ConstIndexArray
 PatchTable::GetVaryingVertices() const {
+    if (_isUniformLinear) {
+        assert(GetNumPatchArrays() == 1);
+        return GetPatchArrayVertices(0);
+    }
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -480,45 +499,6 @@ PatchTable::getPatchArrayVaryingVertices(int arrayIndex) {
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();
     Index start = pa.patchIndex * numVaryingCVs;
     return IndexArray(&_varyingVerts[start], pa.numPatches * numVaryingCVs);
-}
-void
-PatchTable::populateVaryingVertices() {
-    // In order to support evaluation of varying data we need to access
-    // the varying values indexed by the zero ring vertices of the vertex
-    // patch. This indexing is redundant for triangles and quads and
-    // could be made redunant for other patch types if we reorganized
-    // the vertex patch indices so that the zero ring indices always occured
-    // first. This will also need to be updated when we add support for
-    // triangle patches.
-    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
-    for (int arrayIndex=0; arrayIndex<(int)_patchArrays.size(); ++arrayIndex) {
-        PatchArray const & pa = getPatchArray(arrayIndex);
-        PatchDescriptor::Type patchType = pa.desc.GetType();
-        for (int patch=0; patch<pa.numPatches; ++patch) {
-            ConstIndexArray vertexCVs = GetPatchVertices(arrayIndex, patch);
-            int start = (pa.patchIndex + patch) * numVaryingCVs;
-            if (patchType == PatchDescriptor::REGULAR) {
-                _varyingVerts[start+0] = vertexCVs[5];
-                _varyingVerts[start+1] = vertexCVs[6];
-                _varyingVerts[start+2] = vertexCVs[10];
-                _varyingVerts[start+3] = vertexCVs[9];
-            } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
-                _varyingVerts[start+0] = vertexCVs[0];
-                _varyingVerts[start+1] = vertexCVs[5];
-                _varyingVerts[start+2] = vertexCVs[10];
-                _varyingVerts[start+3] = vertexCVs[15];
-            } else if (patchType == PatchDescriptor::QUADS) {
-                _varyingVerts[start+0] = vertexCVs[0];
-                _varyingVerts[start+1] = vertexCVs[1];
-                _varyingVerts[start+2] = vertexCVs[2];
-                _varyingVerts[start+3] = vertexCVs[3];
-            } else if (patchType == PatchDescriptor::TRIANGLES) {
-                _varyingVerts[start+0] = vertexCVs[0];
-                _varyingVerts[start+1] = vertexCVs[1];
-                _varyingVerts[start+2] = vertexCVs[2];
-            }
-        }
-    }
 }
 
 int
