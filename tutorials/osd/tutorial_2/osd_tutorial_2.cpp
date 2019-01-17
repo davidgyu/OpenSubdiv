@@ -151,7 +151,6 @@ createDefaultTopologyRefiner() {
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
     Sdc::Options options;
-    options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
 
     // Instantiate a FarTopologyRefiner from the descriptor
     Far::TopologyRefiner * refiner =
@@ -187,7 +186,6 @@ createTopologyRefiner(std::string const & filepath) {
 
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
-    sdcoptions.SetFVarLinearInterpolation(Sdc::Options::FVAR_LINEAR_BOUNDARIES);
 
     // Instantiate a FarTopologyRefiner from the Shape descriptor
     Far::TopologyRefiner * refiner =
@@ -530,21 +528,24 @@ refineMeshAdaptive(Far::TopologyRefiner * refiner,
         int maxlevel, int tesslevel,
         bool computeNormals, bool computeFVar)
 {
+    // FaceVarying topology for UV data
+    computeFVar = computeFVar && (refiner->GetNumFVarChannels() > 0);
+    const int uvChannel = 0;
+
     //
     // 1) Refine the mesh topology
     //
 
     // Adaptively refine the topology up to 'maxlevel'
     Far::TopologyRefiner::AdaptiveOptions adaptiveOptions(maxlevel);
+    if (computeFVar) {
+        adaptiveOptions.considerFVarChannels = true;
+    }
     refiner->RefineAdaptive(adaptiveOptions);
 
     //
     // 2) Create a patch table for the refined topology
     //
-
-    // FaceVarying topology for UV data
-    computeFVar = computeFVar && (refiner->GetNumFVarChannels() > 0);
-    const int uvChannel = 0;
 
     // Create PatchTable
     Far::PatchTable const * patchTable = NULL;
@@ -608,7 +609,7 @@ refineMeshAdaptive(Far::TopologyRefiner * refiner,
         if (Far::StencilTable const * localPointFaceVaryingStencilTable =
             patchTable->GetLocalPointFaceVaryingStencilTable()) {
             if (Far::StencilTable const * combinedTable =
-                Far::StencilTableFactory::AppendLocalPointStencilTable(
+                Far::StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
                     *refiner, stencilTableFVar,
                     localPointFaceVaryingStencilTable)) {
                 delete stencilTableFVar;
