@@ -46,7 +46,6 @@ struct OutputVertex {
     float3 tangent : TANGENT;
     float3 bitangent : TANGENT1;
     float4 patchCoord : PATCHCOORD; // u, v, faceLevel, faceId
-    noperspective float4 edgeDistance : EDGEDISTANCE;
 #if defined(OSD_COMPUTE_NORMAL_DERIVATIVES)
     float3 Nu : TANGENT2;
     float3 Nv : TANGENT3;

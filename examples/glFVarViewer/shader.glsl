@@ -162,7 +162,7 @@ in block {
 
 out block {
     OutputVertex v;
-    noperspective out vec4 edgeDistance;
+    noperspective out vec3 barycentric;
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -236,39 +236,22 @@ void emit(int index, vec3 normal)
 #else
     gl_Position = ProjectionMatrix * inpt[index].v.position;
 #endif
-    EmitVertex();
-}
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-const float VIEWPORT_SCALE = 512.0;
-
-float edgeDistance(vec4 p, vec4 p0, vec4 p1)
-{
-    return VIEWPORT_SCALE *
-        abs((p.x - p0.x) * (p1.y - p0.y) -
-            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
-}
-
-void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
-{
-    outpt.edgeDistance[0] =
-        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    outpt.edgeDistance[1] =
-        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    outpt.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
+    vec3 coords[3] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,1,0));
+    outpt.barycentric = coords[index];
 #endif
 #ifdef PRIM_QUAD
-    outpt.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    outpt.edgeDistance[3] =
-        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
+    vec3 coords[4] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,0,1),vec3(0,1,0));
+    outpt.barycentric = coords[index];
+#endif
+#else
+    outpt.barycentric = vec3(0);
 #endif
 
-    emit(index, normal);
+    EmitVertex();
 }
-#endif
 
 void main()
 {
@@ -280,28 +263,10 @@ void main()
     vec3 C = (inpt[2].v.position - inpt[1].v.position).xyz;
     vec3 n0 = normalize(cross(B, A));
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
-    edgeVerts[3] = ProjectionMatrix * inpt[3].v.position;
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-    edgeVerts[3].xy /= edgeVerts[3].w;
-
-    emit(0, n0, edgeVerts);
-    emit(1, n0, edgeVerts);
-    emit(3, n0, edgeVerts);
-    emit(2, n0, edgeVerts);
-#else
     emit(0, n0);
     emit(1, n0);
     emit(3, n0);
     emit(2, n0);
-#endif
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
@@ -309,24 +274,9 @@ void main()
     vec3 B = (inpt[2].v.position - inpt[0].v.position).xyz;
     vec3 n0 = normalize(cross(B, A));
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-
-    emit(0, n0, edgeVerts);
-    emit(1, n0, edgeVerts);
-    emit(2, n0, edgeVerts);
-#else
     emit(0, n0);
     emit(1, n0);
     emit(2, n0);
-#endif
 #endif // PRIM_TRI
 
     EndPrimitive();
@@ -341,27 +291,27 @@ void main()
 
 in block {
     OutputVertex v;
-    noperspective in vec4 edgeDistance;
+    noperspective in vec3 barycentric;
     OSD_USER_VARYING_DECLARE
 } inpt;
 
 out vec4 outColor;
 
 vec4
-edgeColor(vec4 Cfill)
+edgeColor(vec4 Cfill, vec3 barycentric)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    float d =
-        min(inpt.edgeDistance[0], min(inpt.edgeDistance[1], inpt.edgeDistance[2]));
+    vec3 dist = max(vec3(0), barycentric / fwidth(barycentric));
 #endif
 #ifdef PRIM_QUAD
-    float d =
-        min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
-            min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
+    vec3 dist = max(vec3(0), barycentric / fwidth(vec3(barycentric.xy,1)));
 #endif
-    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+
+    float d = min(dist.x, min(dist.y, dist.z));
     float p = exp2(-2 * d * d);
+
+    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
 
 #if defined(GEOMETRY_OUT_WIRE)
     if (p < 0.25) discard;
@@ -369,6 +319,7 @@ edgeColor(vec4 Cfill)
 
     Cfill.rgb = mix(Cfill.rgb, Cedge.rgb, p);
 #endif
+
     return Cfill;
 }
 
@@ -377,7 +328,7 @@ void
 main()
 {
 #ifdef GEOMETRY_UV_VIEW
-    outColor = edgeColor(vec4(0.9));
+    outColor = edgeColor(vec4(0.9), vec3(0));
     return;
 
 #else
@@ -388,7 +339,7 @@ main()
     vec4 color = vec4(inpt.color.rg*checker, 1-checker, 1);
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    color = edgeColor(color);
+    color = edgeColor(color, inpt.barycentric);
 #endif
     outColor = color;
 #endif

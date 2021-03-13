@@ -156,5 +156,4 @@ void ds_main_patches(
     OSD_DISPLACEMENT_CALLBACK;
 
     output.positionOut = mul(OsdProjectionMatrix(), output.position);
-    output.edgeDistance = 0;
 }

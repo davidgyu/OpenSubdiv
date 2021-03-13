@@ -198,7 +198,7 @@ in block {
 
 out block {
     OutputVertex v;
-    noperspective out vec4 edgeDistance;
+    noperspective out vec3 barycentric;
 } outpt;
 
 // --------------------------------------
@@ -217,39 +217,19 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
 #endif
 
     gl_Position = ProjectionMatrix * outpt.v.position;
+
+#if defined(PRIM_TRI)
+    vec3 coords[3] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,1,0));
+    outpt.barycentric = coords[index];
+#elif defined(PRIM_QUAD)
+    vec3 coords[4] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,0,1),vec3(0,1,0));
+    outpt.barycentric = coords[index];
+#elif defined(PRIM_LINE)
+    outpt.barycentric = vec3(0);
+#endif
+
     EmitVertex();
 }
-
-const float VIEWPORT_SCALE = 1024.0; // XXXdyu
-
-float edgeDistance(vec4 p, vec4 p0, vec4 p1)
-{
-    return VIEWPORT_SCALE *
-        abs((p.x - p0.x) * (p1.y - p0.y) -
-            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
-}
-
-#if defined(PRIM_TRI) || defined(PRIM_QUAD)
-void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
-{
-    outpt.edgeDistance[0] =
-        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    outpt.edgeDistance[1] =
-        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
-#ifdef PRIM_TRI
-    outpt.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
-#endif
-#ifdef PRIM_QUAD
-    outpt.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    outpt.edgeDistance[3] =
-        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
-#endif
-
-    emit(index, position, normal, patchCoord);
-}
-#endif
 
 // --------------------------------------
 
@@ -296,32 +276,10 @@ void main()
     normal[3] = inpt[3].v.normal;
 #endif
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
-    edgeVerts[3] = ProjectionMatrix * inpt[3].v.position;
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-    edgeVerts[3].xy /= edgeVerts[3].w;
-
-    emit(0, position[0], normal[0], patchCoord[0], edgeVerts);
-    emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
-    emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
-    emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
-#else
-    outpt.edgeDistance[0] = 0;
-    outpt.edgeDistance[1] = 0;
-    outpt.edgeDistance[2] = 0;
-    outpt.edgeDistance[3] = 0;
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(3, position[3], normal[3], patchCoord[3]);
     emit(2, position[2], normal[2], patchCoord[2]);
-#endif
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
@@ -351,24 +309,9 @@ void main()
     normal[2] = inpt[2].v.normal;
 #endif
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * inpt[0].v.position;
-    edgeVerts[1] = ProjectionMatrix * inpt[1].v.position;
-    edgeVerts[2] = ProjectionMatrix * inpt[2].v.position;
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-
-    emit(0, position[0], normal[0], patchCoord[0], edgeVerts);
-    emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
-    emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
-#else
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(2, position[2], normal[2], patchCoord[2]);
-#endif
 #endif // PRIM_TRI
 
 #ifdef PRIM_LINE
@@ -387,7 +330,7 @@ void main()
 
 in block {
     OutputVertex v;
-    noperspective in vec4 edgeDistance;
+    noperspective in vec3 barycentric;
 } inpt;
 
 out vec4 outColor;
@@ -585,28 +528,27 @@ lighting(vec4 texColor, vec3 Peye, vec3 Neye, float spec, float occ)
 }
 
 vec4
-edgeColor(vec4 Cfill)
+edgeColor(vec4 Cfill, vec3 barycentric)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    float d =
-        min(inpt.edgeDistance[0], min(inpt.edgeDistance[1], inpt.edgeDistance[2]));
+    vec3 dist = max(vec3(0),barycentric / fwidth(barycentric));
 #endif
 #ifdef PRIM_QUAD
-    float d =
-        min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
-            min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
+    vec3 dist = max(vec3(0),barycentric / fwidth(vec3(barycentric.xy,1)));
 #endif
 #ifdef PRIM_LINE
-    float d = 0;
+    vec3 dist = Vec3(0);
 #endif
-    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+
+    float d = min(dist.x, min(dist.y, dist.z));
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
     if (p < 0.25) discard;
 #endif
 
+    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     Cfill.rgb = mix(Cfill.rgb, Cedge.rgb, p);
 #endif
     return Cfill;
@@ -668,15 +610,15 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(GetOverrideColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID))), inpt.v.position.xyz, normal, 1, 0));
+    vec4 texColor = edgeColor(lighting(GetOverrideColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID))), inpt.v.position.xyz, normal, 1, 0), inpt.barycentric);
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD
-    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 1, 0));
+    vec4 texColor = edgeColor(lighting(inpt.v.patchCoord, inpt.v.position.xyz, normal, 1, 0), inpt.barycentric);
     outColor = texColor;
     return;
 #elif defined COLOR_NORMAL
-    vec4 texColor = edgeColor(vec4(normal, 1));
+    vec4 texColor = edgeColor(vec4(normal, 1), inpt.barycentric);
     outColor = texColor;
     return;
 #else // COLOR_NONE
@@ -732,7 +674,7 @@ main()
 
     // ------------ wireframe ---------------
 
-    outColor = edgeColor(Cf);
+    outColor = edgeColor(Cf, inpt.barycentric);
 }
 #endif //PRIM_TRI || PRIM_QUAD
 

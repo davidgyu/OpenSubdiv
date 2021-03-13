@@ -134,7 +134,6 @@ void vs_main( in InputVertex input,
     output.patchCoord = float4(0,0,0,0);
     output.tangent = float3(0,0,0);
     output.bitangent = float3(0,0,0);
-    output.edgeDistance = float4(0,0,0,0);
 }
 
 // ---------------------------------------------------------------------------
@@ -145,72 +144,57 @@ struct GS_OUT
 {
     OutputVertex v;
     uint primitiveID : SV_PrimitiveID;
+    noperspective float3 barycentric : BARYCENTRIC;
 };
 
 GS_OUT
-outputVertex(OutputVertex input, float3 normal, uint primitiveID)
+outputVertex(int index, OutputVertex input, float3 normal, uint primitiveID)
 {
     GS_OUT gsout;
     gsout.v = input;
     gsout.v.normal = normal;
     gsout.primitiveID = primitiveID;
+
+#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
+#ifdef PRIM_TRI
+    float3 coords[3] = {float3(0,0,1),float3(1,0,0),float3(0,1,0)};
+    gsout.barycentric = coords[index];
+#endif
+#ifdef PRIM_QUAD
+    float3 coords[4] = {float3(0,0,1),float3(1,0,0),float3(0,0,1),float3(0,1,0)};
+    gsout.barycentric = coords[index];
+#endif
+#else
+    gsout.barycentric = float3(0,0,0);
+#endif
+
     return gsout;
 }
 
 GS_OUT
-outputVertex(OutputVertex input, float3 normal, float4 patchCoord, uint primitiveID)
+outputVertex(int index, OutputVertex input, float3 normal, float4 patchCoord, uint primitiveID)
 {
     GS_OUT gsout;
     gsout.v = input;
     gsout.v.normal = normal;
     gsout.v.patchCoord = patchCoord;
     gsout.primitiveID = primitiveID;
-    return gsout;
-}
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    #define EDGE_VERTS 3
+    float3 coords[3] = {float3(0,0,1),float3(1,0,0),float3(0,1,0)};
+    gsout.barycentric = coords[index];
 #endif
 #ifdef PRIM_QUAD
-    #define EDGE_VERTS 4
+    float3 coords[4] = {float3(0,0,1),float3(1,0,0),float3(0,0,1),float3(0,1,0)};
+    gsout.barycentric = coords[index];
+#endif
+#else
+    gsout.barycentric = float3(0,0,0);
 #endif
 
-static float VIEWPORT_SCALE = 1024.0; // XXXdyu
-
-float edgeDistance(float2 p, float2 p0, float2 p1)
-{
-    return VIEWPORT_SCALE *
-        abs((p.x - p0.x) * (p1.y - p0.y) -
-            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
-}
-
-GS_OUT
-outputWireVertex(OutputVertex input, float3 normal,
-                 int index, float2 edgeVerts[EDGE_VERTS], uint primitiveID)
-{
-    GS_OUT gsout;
-    gsout.v = input;
-    gsout.v.normal = normal;
-
-    gsout.v.edgeDistance[0] =
-        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    gsout.v.edgeDistance[1] =
-        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
-#ifdef PRIM_TRI
-    gsout.v.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
-#endif
-#ifdef PRIM_QUAD
-    gsout.v.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    gsout.v.edgeDistance[3] =
-        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
-#endif
-    gsout.primitiveID = primitiveID;
     return gsout;
 }
-#endif
 
 #ifdef PRIM_QUAD
 [maxvertexcount(6)]
@@ -230,13 +214,13 @@ void gs_main( lineadj OutputVertex input[4],
     patchCoord[2] = GeneratePatchCoord(float2(1, 1), primitiveID);
     patchCoord[3] = GeneratePatchCoord(float2(0, 1), primitiveID);
 
-    triStream.Append(outputVertex(input[0], n0, patchCoord[0], primitiveID));
-    triStream.Append(outputVertex(input[1], n0, patchCoord[1], primitiveID));
-    triStream.Append(outputVertex(input[3], n0, patchCoord[3], primitiveID));
+    triStream.Append(outputVertex(0, input[0], n0, patchCoord[0], primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, patchCoord[1], primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, patchCoord[3], primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputVertex(input[3], n0, patchCoord[3], primitiveID));
-    triStream.Append(outputVertex(input[1], n0, patchCoord[1], primitiveID));
-    triStream.Append(outputVertex(input[2], n0, patchCoord[2], primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, patchCoord[3], primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, patchCoord[1], primitiveID));
+    triStream.Append(outputVertex(2, input[2], n0, patchCoord[2], primitiveID));
     triStream.RestartStrip();
 }
 #else // PRIM_TRI
@@ -271,20 +255,9 @@ void gs_main( triangle OutputVertex input[3],
     normal[2] = input[2].normal;
 #endif
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    float2 edgeVerts[3];
-    edgeVerts[0] = input[0].positionOut.xy / input[0].positionOut.w;
-    edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
-    edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
-
-    triStream.Append(outputWireVertex(input[0], normal[0], 0, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[1], normal[1], 1, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[2], normal[2], 2, edgeVerts, primitiveID));
-#else
-    triStream.Append(outputVertex(input[0], normal[0], primitiveID));
-    triStream.Append(outputVertex(input[1], normal[1], primitiveID));
-    triStream.Append(outputVertex(input[2], normal[2], primitiveID));
-#endif
+    triStream.Append(outputVertex(0, input[0], normal[0], primitiveID));
+    triStream.Append(outputVertex(1, input[1], normal[1], primitiveID));
+    triStream.Append(outputVertex(2, input[2], normal[2], primitiveID));
 }
 
 #endif
@@ -363,25 +336,24 @@ lighting(float4 texColor, float3 Peye, float3 Neye, float occ)
 // ---------------------------------------------------------------------------
 
 float4
-edgeColor(float4 Cfill, float4 edgeDistance)
+edgeColor(float4 Cfill, float3 barycentric)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    float d =
-        min(edgeDistance[0], min(edgeDistance[1], edgeDistance[2]));
+    float3 dist = max(float3(0,0,0),barycentric / fwidth(barycentric));
 #endif
 #ifdef PRIM_QUAD
-    float d =
-        min(min(edgeDistance[0], edgeDistance[1]),
-            min(edgeDistance[2], edgeDistance[3]));
+    float3 dist = max(float3(0,0,0),barycentric / fwidth(float3(barycentric.xy,1)));
 #endif
-    float4 Cedge = float4(1.0, 1.0, 0.0, 1.0);
+
+    float d = min(dist.x, min(dist.y, dist.z));
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
     if (p < 0.25) discard;
 #endif
 
+    float4 Cedge = float4(1.0, 1.0, 0.0, 1.0);
     Cfill.rgb = lerp(Cfill.rgb, Cedge.rgb, p);
 #endif
     return Cfill;
@@ -491,9 +463,58 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     return patchColors[6*patchType + pattern];
 }
 
+#if defined(NORMAL_HW_SCREENSPACE) || defined(NORMAL_SCREENSPACE)
+
+float3
+perturbNormalFromDisplacement(float3 position, float3 normal, float4 patchCoord)
+{
+    // by Morten S. Mikkelsen
+    // http://jbit.net/~sparky/sfgrad_bump/mm_sfgrad_bump.pdf
+    // slightly modified for ptex guttering
+
+    float3 vSigmaS = ddx(position);
+    float3 vSigmaT = ddy(position);
+    float3 vN = normal;
+    float3 vR1 = cross(vSigmaT, vN);
+    float3 vR2 = cross(vN, vSigmaS);
+    float fDet = dot(vSigmaS, vR1);
+#if 0
+    // not work well with ptex
+    float dBs = ddx(disp);
+    float dBt = ddy(disp);
+#else
+    float2 texDx = ddx(patchCoord.xy);
+    float2 texDy = ddy(patchCoord.xy);
+
+    // limit forward differencing to the width of ptex gutter
+    const float resolution = 128.0;
+    float d = min(1, (0.5/resolution)/max(length(texDx), length(texDy)));
+
+    float4 STll = patchCoord;
+    float4 STlr = patchCoord + d * float4(texDx.x, texDx.y, 0, 0);
+    float4 STul = patchCoord + d * float4(texDy.x, texDy.y, 0, 0);
+#if defined NORMAL_HW_SCREENSPACE
+    float Hll = PtexLookupFast(STll, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hlr = PtexLookupFast(STlr, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hul = PtexLookupFast(STul, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+#elif defined NORMAL_SCREENSPACE
+    float Hll = PtexMipmapLookup(STll, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hlr = PtexMipmapLookup(STlr, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+    float Hul = PtexMipmapLookup(STul, mipmapBias, textureDisplace_Data, textureDisplace_Packing).x * displacementScale;
+#endif
+    float dBs = (Hlr - Hll)/d;
+    float dBt = (Hul - Hll)/d;
+#endif
+
+    float3 vSurfGrad = sign(fDet) * (dBs * vR1 + dBt * vR2);
+    return normalize(abs(fDet) * vN - vSurfGrad);
+}
+#endif // NORMAL_SCREENSPACE
+
 void
 ps_main(in OutputVertex input,
         uint primitiveID : SV_PrimitiveID,
+        float3 barycentric : BARYCENTRIC,
         out float4 outColor : SV_Target )
 {
     // ------------ normal ---------------
@@ -547,17 +568,17 @@ ps_main(in OutputVertex input,
     float4 patchColor = getAdaptivePatchColor(
         OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), 0);
     float4 texColor = edgeColor(lighting(patchColor, input.position.xyz, normal, 0),
-                                input.edgeDistance);
+                                barycentric);
     outColor = texColor;
     return;
 #elif defined(COLOR_PATCHCOORD)
     float4 texColor = edgeColor(lighting(input.patchCoord, input.position.xyz, normal, 0),
-                                input.edgeDistance);
+                                barycentric);
     outColor = texColor;
     return;
 #elif defined(COLOR_NORMAL)
     float4 texColor = edgeColor(float4(normal.x, normal.y, normal.z, 1),
-                                input.edgeDistance);
+                                barycentric);
     outColor = texColor;
     return;
 #else // COLOR_NONE
@@ -617,5 +638,5 @@ ps_main(in OutputVertex input,
 #endif
 
     // ------------ wireframe ---------------
-    outColor = edgeColor(Cf, input.edgeDistance);
+    outColor = edgeColor(Cf, barycentric);
 }

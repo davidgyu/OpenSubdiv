@@ -139,7 +139,7 @@ void main()
 out vec4 gPosition;
 out vec4 gPatchCoord;
 out vec3 gNormal;
-noperspective out vec4 gEdgeDistance;
+noperspective out vec3 gBarycentric;
 
 // --------------------------------------
 
@@ -150,39 +150,19 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord)
     gNormal = normal;
 
     gl_Position = ProjectionMatrix * gPosition;
+
+#if defined(PRIM_TRI)
+    vec3 coords[3] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,1,0));
+    gBarycentric = coords[index];
+#elif defined(PRIM_QUAD)
+    vec3 coords[4] = vec3[](vec3(0,0,1),vec3(1,0,0),vec3(0,0,1),vec3(0,1,0));
+    gBarycentric = coords[index];
+#elif defined(PRIM_LINE)
+    gBarycentric = vec3(0);
+#endif
+
     EmitVertex();
 }
-
-const float VIEWPORT_SCALE = 1024.0; // XXXdyu
-
-float edgeDistance(vec4 p, vec4 p0, vec4 p1)
-{
-    return VIEWPORT_SCALE *
-        abs((p.x - p0.x) * (p1.y - p0.y) -
-            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
-}
-
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts[EDGE_VERTS])
-{
-    gEdgeDistance[0] =
-        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    gEdgeDistance[1] =
-        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
-#ifdef PRIM_TRI
-    gEdgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
-#endif
-#ifdef PRIM_QUAD
-    gEdgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    gEdgeDistance[3] =
-        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
-#endif
-
-    emit(index, position, normal, patchCoord);
-}
-#endif
 
 // --------------------------------------
 
@@ -234,29 +214,10 @@ void main()
     normal[3] = vNormal[3];
 #endif
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * vPosition[0];
-    edgeVerts[1] = ProjectionMatrix * vPosition[1];
-    edgeVerts[2] = ProjectionMatrix * vPosition[2];
-    edgeVerts[3] = ProjectionMatrix * vPosition[3];
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-    edgeVerts[3].xy /= edgeVerts[3].w;
-
-    emit(0, position[0], normal[0], patchCoord[0], edgeVerts);
-    emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
-    emit(3, position[3], normal[3], patchCoord[3], edgeVerts);
-    emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
-#else
-    gEdgeDistance = vec4(0);
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(3, position[3], normal[3], patchCoord[3]);
     emit(2, position[2], normal[2], patchCoord[2]);
-#endif
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
@@ -292,25 +253,9 @@ void main()
     normal[2] = vNormal[2];
 #endif
 
-#if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
-    vec4 edgeVerts[EDGE_VERTS];
-    edgeVerts[0] = ProjectionMatrix * vPosition[0];
-    edgeVerts[1] = ProjectionMatrix * vPosition[1];
-    edgeVerts[2] = ProjectionMatrix * vPosition[2];
-
-    edgeVerts[0].xy /= edgeVerts[0].w;
-    edgeVerts[1].xy /= edgeVerts[1].w;
-    edgeVerts[2].xy /= edgeVerts[2].w;
-
-    emit(0, position[0], normal[0], patchCoord[0], edgeVerts);
-    emit(1, position[1], normal[1], patchCoord[1], edgeVerts);
-    emit(2, position[2], normal[2], patchCoord[2], edgeVerts);
-#else
-    gEdgeDistance = vec4(0);
     emit(0, position[0], normal[0], patchCoord[0]);
     emit(1, position[1], normal[1], patchCoord[1]);
     emit(2, position[2], normal[2], patchCoord[2]);
-#endif
 #endif // PRIM_TRI
 
     EndPrimitive();
@@ -498,7 +443,7 @@ main()
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
     vec4 texColor = edgeColor(lighting(GetOverrideColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID))),
-                                       gPosition.xyz, normal, 1, 0));
+                                       gPosition.xyz, normal, 1, 0),gBarycentric);
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD
@@ -539,7 +484,7 @@ main()
 
     // ------------ wireframe ---------------
 
-    outColor = edgeColor(Cf);
+    outColor = edgeColor(Cf, gBarycentric);
 }
 
 #endif

@@ -1192,9 +1192,8 @@ struct PipelineConfig {
                         }
                     break;
                     case Far::PatchDescriptor::QUADS:
-                        //Quads cannot use stage in, due to the need for re-indexing.
-                        pipelineDesc.vertexDescriptor = nil;
                     case Far::PatchDescriptor::TRIANGLES:
+                        pipelineDesc.vertexDescriptor = nil;
                         [vertexDesc reset];
                         break;
                 }

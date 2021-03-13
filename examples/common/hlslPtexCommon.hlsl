@@ -135,6 +135,42 @@ float4 PtexLookupNearest(float4 patchCoord,
     return data[int3(int(coords.x), int(coords.y), ppack.page)];
 }
 
+int3 textureSize(Texture2DArray data, uint mipLevel)
+{
+    uint width, height, elements, numLevels;
+    data.GetDimensions(mipLevel, width, height, elements, numLevels);
+    return int3(width, height, 0);
+}
+
+float4 PtexLookupFast(float4 patchCoord,
+                      Texture2DArray data,
+                      Buffer<uint> packings)
+{
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
+    int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID);
+
+    int3 size = textureSize(data, 0);
+    float2 coords = float2((uv.x * ppack.width + ppack.uOffset)/size.x,
+                           (uv.y * ppack.height + ppack.vOffset)/size.y);
+    return data[int3(int(coords.x), int(coords.y), ppack.page)];
+}
+
+float4 PtexLookupFast(float4 patchCoord,
+                      int level,
+                      Texture2DArray data,
+                      Buffer<uint> packings)
+{
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
+    int faceID = int(patchCoord.w);
+    PtexPacking ppack = getPtexPacking(packings, faceID, level);
+
+    int3 size = textureSize(data, 0);
+    float2 coords = float2((uv.x * ppack.width + ppack.uOffset)/size.x,
+                           (uv.y * ppack.height + ppack.vOffset)/size.y);
+    return data[int3(int(coords.x), int(coords.y), ppack.page)];
+}
+
 float4 PtexLookup(float4 patchCoord,
                   int level,
                   Texture2DArray data,

@@ -84,61 +84,32 @@ struct GS_OUT
 {
     OutputVertex v;
     uint primitiveID : SV_PrimitiveID;
+    noperspective float3 barycentric : BARYCENTRIC;
 };
 
 GS_OUT
-outputVertex(OutputVertex input, float3 normal, uint primitiveID)
+outputVertex(int index, OutputVertex input, float3 normal, uint primitiveID)
 {
     GS_OUT gsout;
     gsout.v = input;
     gsout.v.normal = normal;
     gsout.primitiveID = primitiveID;
-    return gsout;
-}
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    #define EDGE_VERTS 3
+    float3 coords[3] = {float3(0,0,1),float3(1,0,0),float3(0,1,0)};
+    gsout.barycentric = coords[index];
 #endif
 #ifdef PRIM_QUAD
-    #define EDGE_VERTS 4
+    float3 coords[4] = {float3(0,0,1),float3(1,0,0),float3(0,0,1),float3(0,1,0)};
+    gsout.barycentric = coords[index];
+#endif
+#else
+    gsout.barycentric = float3(0,0,0);
 #endif
 
-static float VIEWPORT_SCALE = 1024.0; // XXXdyu
-
-float edgeDistance(float2 p, float2 p0, float2 p1)
-{
-    return VIEWPORT_SCALE *
-        abs((p.x - p0.x) * (p1.y - p0.y) -
-            (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
-}
-
-GS_OUT
-outputWireVertex(OutputVertex input, float3 normal,
-                 int index, float2 edgeVerts[EDGE_VERTS], uint primitiveID)
-{
-    GS_OUT gsout;
-    gsout.v = input;
-    gsout.v.normal = normal;
-
-    gsout.v.edgeDistance[0] =
-        edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    gsout.v.edgeDistance[1] =
-        edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
-#ifdef PRIM_TRI
-    gsout.v.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
-#endif
-#ifdef PRIM_QUAD
-    gsout.v.edgeDistance[2] =
-        edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    gsout.v.edgeDistance[3] =
-        edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
-#endif
-    gsout.primitiveID = primitiveID;
     return gsout;
 }
-#endif
 
 [maxvertexcount(6)]
 void gs_quad( lineadj OutputVertex input[4],
@@ -151,13 +122,13 @@ void gs_quad( lineadj OutputVertex input[4],
 
     float3 n0 = normalize(cross(B, A));
 
-    triStream.Append(outputVertex(input[0], n0, primitiveID));
-    triStream.Append(outputVertex(input[1], n0, primitiveID));
-    triStream.Append(outputVertex(input[3], n0, primitiveID));
+    triStream.Append(outputVertex(0, input[0], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputVertex(input[3], n0, primitiveID));
-    triStream.Append(outputVertex(input[1], n0, primitiveID));
-    triStream.Append(outputVertex(input[2], n0, primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(2, input[2], n0, primitiveID));
     triStream.RestartStrip();
 }
 
@@ -174,19 +145,13 @@ void gs_quad_wire( lineadj OutputVertex input[4],
 
     float3 n0 = normalize(cross(B, A));
 
-    float2 edgeVerts[4];
-    edgeVerts[0] = input[0].positionOut.xy / input[0].positionOut.w;
-    edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
-    edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
-    edgeVerts[3] = input[3].positionOut.xy / input[3].positionOut.w;
-
-    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts, primitiveID));
+    triStream.Append(outputVertex(0, input[0], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts, primitiveID));
+    triStream.Append(outputVertex(3, input[3], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(2, input[2], n0, primitiveID));
     triStream.RestartStrip();
 }
 #endif
@@ -202,9 +167,9 @@ void gs_triangle( triangle OutputVertex input[3],
 
     float3 n0 = normalize(cross(B, A));
 
-    triStream.Append(outputVertex(input[0], n0, primitiveID));
-    triStream.Append(outputVertex(input[1], n0, primitiveID));
-    triStream.Append(outputVertex(input[2], n0, primitiveID));
+    triStream.Append(outputVertex(0, input[0], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(2, input[2], n0, primitiveID));
 }
 
 [maxvertexcount(3)]
@@ -212,9 +177,9 @@ void gs_triangle_smooth( triangle OutputVertex input[3],
                          uint primitiveID : SV_PrimitiveID,
                          inout TriangleStream<GS_OUT> triStream )
 {
-    triStream.Append(outputVertex(input[0], input[0].normal, primitiveID));
-    triStream.Append(outputVertex(input[1], input[1].normal, primitiveID));
-    triStream.Append(outputVertex(input[2], input[2].normal, primitiveID));
+    triStream.Append(outputVertex(0, input[0], input[0].normal, primitiveID));
+    triStream.Append(outputVertex(1, input[1], input[1].normal, primitiveID));
+    triStream.Append(outputVertex(2, input[2], input[2].normal, primitiveID));
 }
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
@@ -229,14 +194,9 @@ void gs_triangle_wire( triangle OutputVertex input[3],
 
     float3 n0 = normalize(cross(B, A));
 
-    float2 edgeVerts[3];
-    edgeVerts[0] = input[0].positionOut.xy / input[0].positionOut.w;
-    edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
-    edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
-
-    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts, primitiveID));
+    triStream.Append(outputVertex(0, input[0], n0, primitiveID));
+    triStream.Append(outputVertex(1, input[1], n0, primitiveID));
+    triStream.Append(outputVertex(2, input[2], n0, primitiveID));
 }
 
 [maxvertexcount(3)]
@@ -244,14 +204,9 @@ void gs_triangle_smooth_wire( triangle OutputVertex input[3],
                               uint primitiveID : SV_PrimitiveID,
                               inout TriangleStream<GS_OUT> triStream )
 {
-    float2 edgeVerts[3];
-    edgeVerts[0] = input[0].positionOut.xy / input[0].positionOut.w;
-    edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
-    edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
-
-    triStream.Append(outputWireVertex(input[0], input[0].normal, 0, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[1], input[1].normal, 1, edgeVerts, primitiveID));
-    triStream.Append(outputWireVertex(input[2], input[2].normal, 2, edgeVerts, primitiveID));
+    triStream.Append(outputVertex(0, input[0], input[0].normal, primitiveID));
+    triStream.Append(outputVertex(1, input[1], input[1].normal, primitiveID));
+    triStream.Append(outputVertex(2, input[2], input[2].normal, primitiveID));
 }
 #endif
 #endif
@@ -323,25 +278,25 @@ lighting(float4 diffuse, float3 Peye, float3 Neye)
 // ---------------------------------------------------------------------------
 
 float4
-edgeColor(float4 Cfill, float4 edgeDistance)
+edgeColor(float4 Cfill, float3 barycentric)
 {
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
-    float d =
-        min(edgeDistance[0], min(edgeDistance[1], edgeDistance[2]));
+    float3 dist = max(float3(0,0,0),barycentric / fwidth(barycentric));
 #endif
 #ifdef PRIM_QUAD
-    float d =
-        min(min(edgeDistance[0], edgeDistance[1]),
-            min(edgeDistance[2], edgeDistance[3]));
+    float3 dist = max(float3(0,0,0),barycentric / fwidth(float3(barycentric.xy,1)));
 #endif
-    float v = 0.5;
-    float4 Cedge = float4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
+
+    float d = min(dist.x, min(dist.y, dist.z));
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
     if (p < 0.25) discard;
 #endif
+
+    float v = 0.8;
+    float4 Cedge = float4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
 
     Cfill.rgb = lerp(Cfill.rgb, Cedge.rgb, p);
 #endif
@@ -452,6 +407,7 @@ getAdaptiveDepthColor(int3 patchParam)
 void
 ps_main( in OutputVertex input,
          uint primitiveID : SV_PrimitiveID,
+         float3 barycentric : BARYCENTRIC,
          bool isFrontFacing : SV_IsFrontFace,
          out float4 colorOut : SV_Target )
 {
@@ -482,7 +438,7 @@ ps_main( in OutputVertex input,
     Cf.rgb = N;
 #endif
 
-    colorOut = edgeColor(Cf, input.edgeDistance);
+    colorOut = edgeColor(Cf, barycentric);
 }
 
 void
