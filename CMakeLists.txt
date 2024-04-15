@@ -313,7 +313,6 @@ add_definitions(${OSD_COMPILER_FLAGS})
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 
 option(PTEX_LOCATION "Path to Ptex" "")
-option(GLEW_LOCATION "Path to GLEW" "")
 option(GLFW_LOCATION "Path to GLFW" "")
 
 option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
@@ -332,7 +331,6 @@ option(NO_METAL "Disable Metal support" OFF)
 option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
-option(NO_GLEW "Disable use of GLEW" ON)
 option(NO_GLFW "Disable components depending on GLFW" OFF)
 option(NO_GLFW_X11 "Disable GLFW components depending on X11" OFF)
 option(NO_MACOS_FRAMEWORK "Disable generation of framework on macOS" OFF)
@@ -386,18 +384,7 @@ if (OPENGL_FOUND AND NOT IOS)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENGL
     )
-    if (NOT NO_GLEW)
-        if (APPLE)
-            find_package(GLEW)
-        else()
-            find_package(GLEW REQUIRED)
-        endif()
-    endif()
-    if(GLEW_FOUND)
-        add_definitions( -DOSD_USES_GLEW )
-    else()
-        add_definitions( -DOSD_USES_INTERNAL_GLAPILOADER )
-    endif()
+    add_definitions( -DOSD_USES_INTERNAL_GLAPILOADER )
 endif()
 
 if (WIN32 AND NOT NO_DX)
@@ -484,18 +471,7 @@ macro(osd_detect_gl_version header)
 
 endmacro()
 
-if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
-
-    osd_detect_gl_version(${GLEW_INCLUDE_DIR}/GL/glew.h)
-    set(OPENGL_LOADER_INCLUDE_DIRS
-        ${GLEW_INCLUDE_DIR}
-        ${PROJECT_SOURCE_DIR}/glLoader)
-    set(OPENGL_LOADER_LIBRARIES
-        ${GLEW_LIBRARY}
-        OpenGL::GL
-        ${CMAKE_DL_LIBS})
-
-elseif(OPENGL_FOUND)
+if(OPENGL_FOUND)
 
     osd_detect_gl_version(${PROJECT_SOURCE_DIR}/glLoader/glApi.h)
     set(OPENGL_LOADER_INCLUDE_DIRS
@@ -657,13 +633,6 @@ else()
 endif()
 
 if (WIN32)
-    if ("${GLEW_LIBRARY}" MATCHES "glew32s(d|)")
-        # Link against the static version of GLEW
-        add_definitions(
-            -DGLEW_STATIC
-        )
-    endif()
-
     if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
             -DOPENSUBDIV_HAS_DX11SDK

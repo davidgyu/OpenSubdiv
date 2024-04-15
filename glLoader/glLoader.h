@@ -142,13 +142,6 @@
     #include "glApi.h"
 
     #define OSD_OPENGL_HAS(token) (GLAPILOADER_GL_##token)
-
-#elif defined(OSD_USES_GLEW)
-    // -- GLEW
-    #include <GL/glew.h>
-
-    #define OSD_OPENGL_HAS(token) (GLEW_##token)
-
 #endif
 
 namespace OpenSubdiv {
