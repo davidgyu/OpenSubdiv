@@ -242,10 +242,15 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
 
 elseif(MSVC)
 
-    list(APPEND OSD_COMPILER_FLAGS
-                    /W3     # Use warning level recommended for production purposes.
-                    /WX     # Treat all compiler warnings as errors.
+    # Use warning level recommended for production purposes.
+    list(APPEND OSD_COMPILER_FLAGS /W3)
 
+    # Treat all compiler warnings as errors in strict build mode.
+    if (STRICT_BUILD_MODE)
+        list(APPEND OSD_COMPILER_FLAGS /WX)
+    endif()
+
+    list(APPEND OSD_COMPILER_FLAGS
                     # warning C4005: macro redefinition
                     /wd4005
 
@@ -254,7 +259,9 @@ elseif(MSVC)
                     /wd4350
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
                     /wd4548
+                    )
 
+    list(APPEND OSD_COMPILER_FLAGS
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
                     /DNOMINMAX
@@ -315,6 +322,8 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 option(PTEX_LOCATION "Path to Ptex" "")
 option(GLEW_LOCATION "Path to GLEW" "")
 option(GLFW_LOCATION "Path to GLFW" "")
+
+option(STRICT_BUILD_MODE "Turn on additional warnings, Enforce all warnings as errors." OFF)
 
 option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
 option(NO_EXAMPLES "Disable examples build" OFF)
