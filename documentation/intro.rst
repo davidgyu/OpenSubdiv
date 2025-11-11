@@ -1,31 +1,14 @@
 ..  
      Copyright 2013 Pixar
   
-     Licensed under the Apache License, Version 2.0 (the "Apache License")
-     with the following modification; you may not use this file except in
-     compliance with the Apache License and the following modification to it:
-     Section 6. Trademarks. is deleted and replaced with:
-  
-     6. Trademarks. This License does not grant permission to use the trade
-        names, trademarks, service marks, or product names of the Licensor
-        and its affiliates, except as required to comply with Section 4(c) of
-        the License and to reproduce the content of the NOTICE file.
-  
-     You may obtain a copy of the Apache License at
-  
-         http://www.apache.org/licenses/LICENSE-2.0
-  
-     Unless required by applicable law or agreed to in writing, software
-     distributed under the Apache License with the above modification is
-     distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied. See the Apache License for the specific
-     language governing permissions and limitations under the Apache License.
+     Licensed under the terms set forth in the LICENSE.txt file available at
+     https://opensubdiv.org/license.
   
 
 Introduction
 ------------
 
-.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_5_0.png
+.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_7_0.png
    :width: 100%
    :align: center
 
@@ -128,22 +111,10 @@ animation production.
 Licensing
 =========
 
-OpenSubdiv is covered by the Apache License, and is free to use for commercial or
-non-commercial use. This is the same code that Pixar uses internally for animated
-film production. Our intent is to encourage a geometry standard for subdivision 
-surfaces, by providing consistent (i.e. yielding the same limit surface), high 
-performance implementations on a variety of platforms.
-
-Why Apache? We were looking for a commercial-friendly license that would convey 
-our patents to the end users. This quickly narrowed the field to Microsoft Public 
-License or Apache. Initially we chose MSPL because it handled trademarks better. 
-But at the request of several companies we gave Apache another look, and decided 
-to go with Apache with a very slight modification that simply says you cannot use 
-any contributors' trademarks. In other words, you can use OpenSubdiv to make a 
-product, but you cannot use a Luxo Lamp (or other character, etc.) when marketing 
-your product.
-
-`License Header <license.html>`_
+OpenSubdiv is an `open source project
+<https://github.com/PixarAnimationStudios/OpenSubdiv>`_
+released under the
+`TOST license <https://opensubdiv.org/license>`_.
 
 ----
 

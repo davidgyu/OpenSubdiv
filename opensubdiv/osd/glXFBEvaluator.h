@@ -1,25 +1,8 @@
 //
 //   Copyright 2015 Pixar
 //
-//   Licensed under the Apache License, Version 2.0 (the "Apache License")
-//   with the following modification; you may not use this file except in
-//   compliance with the Apache License and the following modification to it:
-//   Section 6. Trademarks. is deleted and replaced with:
-//
-//   6. Trademarks. This License does not grant permission to use the trade
-//      names, trademarks, service marks, or product names of the Licensor
-//      and its affiliates, except as required to comply with Section 4(c) of
-//      the License and to reproduce the content of the NOTICE file.
-//
-//   You may obtain a copy of the Apache License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the Apache License with the above modification is
-//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//   KIND, either express or implied. See the Apache License for the specific
-//   language governing permissions and limitations under the Apache License.
+//   Licensed under the terms set forth in the LICENSE.txt file available at
+//   https://opensubdiv.org/license.
 //
 
 #ifndef OPENSUBDIV3_OSD_GL_XFB_EVALUATOR_H
@@ -27,7 +10,6 @@
 
 #include "../version.h"
 
-#include "../osd/opengl.h"
 #include "../osd/types.h"
 #include "../osd/bufferDescriptor.h"
 
@@ -51,6 +33,8 @@ namespace Osd {
 ///
 class GLStencilTableTBO {
 public:
+    using ID = unsigned int;    // GLuint resource ID
+
     static GLStencilTableTBO *Create(
         Far::StencilTable const *stencilTable, void *deviceContext = NULL) {
         (void)deviceContext;  // unused
@@ -69,27 +53,27 @@ public:
     ~GLStencilTableTBO();
 
     // interfaces needed for GLSLTransformFeedbackKernel
-    GLuint GetSizesTexture() const { return _sizes; }
-    GLuint GetOffsetsTexture() const { return _offsets; }
-    GLuint GetIndicesTexture() const { return _indices; }
-    GLuint GetWeightsTexture() const { return _weights; }
-    GLuint GetDuWeightsTexture() const { return _duWeights; }
-    GLuint GetDvWeightsTexture() const { return _dvWeights; }
-    GLuint GetDuuWeightsTexture() const { return _duuWeights; }
-    GLuint GetDuvWeightsTexture() const { return _duvWeights; }
-    GLuint GetDvvWeightsTexture() const { return _dvvWeights; }
+    ID GetSizesTexture() const { return _sizes; }
+    ID GetOffsetsTexture() const { return _offsets; }
+    ID GetIndicesTexture() const { return _indices; }
+    ID GetWeightsTexture() const { return _weights; }
+    ID GetDuWeightsTexture() const { return _duWeights; }
+    ID GetDvWeightsTexture() const { return _dvWeights; }
+    ID GetDuuWeightsTexture() const { return _duuWeights; }
+    ID GetDuvWeightsTexture() const { return _duvWeights; }
+    ID GetDvvWeightsTexture() const { return _dvvWeights; }
     int GetNumStencils() const { return _numStencils; }
 
 private:
-    GLuint _sizes;
-    GLuint _offsets;
-    GLuint _indices;
-    GLuint _weights;
-    GLuint _duWeights;
-    GLuint _dvWeights;
-    GLuint _duuWeights;
-    GLuint _duvWeights;
-    GLuint _dvvWeights;
+    ID _sizes;
+    ID _offsets;
+    ID _indices;
+    ID _weights;
+    ID _duWeights;
+    ID _dvWeights;
+    ID _duuWeights;
+    ID _duvWeights;
+    ID _dvvWeights;
     int _numStencils;
 };
 
@@ -97,7 +81,9 @@ private:
 
 class GLXFBEvaluator {
 public:
-    typedef bool Instantiatable;
+    using ID = unsigned int;        // GLuint resource ID
+    using LOCATION = int;           // GLint program location
+    using Instantiatable = bool;    // Enable compiled kernel evaluator cache
 
     /// Generic creator template.
     template <typename DEVICE_CONTEXT>
@@ -637,16 +623,16 @@ public:
     ///
     /// @param end              end index of stencil table
     ///
-    bool EvalStencils(GLuint srcBuffer, BufferDescriptor const &srcDesc,
-                      GLuint dstBuffer, BufferDescriptor const &dstDesc,
-                      GLuint duBuffer,  BufferDescriptor const &duDesc,
-                      GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-                      GLuint sizesBuffer,
-                      GLuint offsetsBuffer,
-                      GLuint indicesBuffer,
-                      GLuint weightsBuffer,
-                      GLuint duWeightsBuffer,
-                      GLuint dvWeightsBuffer,
+    bool EvalStencils(ID srcBuffer, BufferDescriptor const &srcDesc,
+                      ID dstBuffer, BufferDescriptor const &dstDesc,
+                      ID duBuffer,  BufferDescriptor const &duDesc,
+                      ID dvBuffer,  BufferDescriptor const &dvDesc,
+                      ID sizesBuffer,
+                      ID offsetsBuffer,
+                      ID indicesBuffer,
+                      ID weightsBuffer,
+                      ID duWeightsBuffer,
+                      ID dvWeightsBuffer,
                       int start,
                       int end) const;
 
@@ -703,22 +689,22 @@ public:
     ///
     /// @param end              end index of stencil table
     ///
-    bool EvalStencils(GLuint srcBuffer, BufferDescriptor const &srcDesc,
-                      GLuint dstBuffer, BufferDescriptor const &dstDesc,
-                      GLuint duBuffer,  BufferDescriptor const &duDesc,
-                      GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-                      GLuint duuBuffer, BufferDescriptor const &duuDesc,
-                      GLuint duvBuffer, BufferDescriptor const &duvDesc,
-                      GLuint dvvBuffer, BufferDescriptor const &dvvDesc,
-                      GLuint sizesBuffer,
-                      GLuint offsetsBuffer,
-                      GLuint indicesBuffer,
-                      GLuint weightsBuffer,
-                      GLuint duWeightsBuffer,
-                      GLuint dvWeightsBuffer,
-                      GLuint duuWeightsBuffer,
-                      GLuint duvWeightsBuffer,
-                      GLuint dvvWeightsBuffer,
+    bool EvalStencils(ID srcBuffer, BufferDescriptor const &srcDesc,
+                      ID dstBuffer, BufferDescriptor const &dstDesc,
+                      ID duBuffer,  BufferDescriptor const &duDesc,
+                      ID dvBuffer,  BufferDescriptor const &dvDesc,
+                      ID duuBuffer, BufferDescriptor const &duuDesc,
+                      ID duvBuffer, BufferDescriptor const &duvDesc,
+                      ID dvvBuffer, BufferDescriptor const &dvvDesc,
+                      ID sizesBuffer,
+                      ID offsetsBuffer,
+                      ID indicesBuffer,
+                      ID weightsBuffer,
+                      ID duWeightsBuffer,
+                      ID dvWeightsBuffer,
+                      ID duuWeightsBuffer,
+                      ID duvWeightsBuffer,
+                      ID dvvWeightsBuffer,
                       int start,
                       int end) const;
 
@@ -1167,28 +1153,28 @@ public:
                            patchTable->GetPatchParamTextureBuffer());
     }
 
-    bool EvalPatches(GLuint srcBuffer, BufferDescriptor const &srcDesc,
-                     GLuint dstBuffer, BufferDescriptor const &dstDesc,
-                     GLuint duBuffer,  BufferDescriptor const &duDesc,
-                     GLuint dvBuffer,  BufferDescriptor const &dvDesc,
+    bool EvalPatches(ID srcBuffer, BufferDescriptor const &srcDesc,
+                     ID dstBuffer, BufferDescriptor const &dstDesc,
+                     ID duBuffer,  BufferDescriptor const &duDesc,
+                     ID dvBuffer,  BufferDescriptor const &dvDesc,
                      int numPatchCoords,
-                     GLuint patchCoordsBuffer,
+                     ID patchCoordsBuffer,
                      const PatchArrayVector &patchArrays,
-                     GLuint patchIndexBuffer,
-                     GLuint patchParamsBuffer) const;
+                     ID patchIndexBuffer,
+                     ID patchParamsBuffer) const;
 
-    bool EvalPatches(GLuint srcBuffer, BufferDescriptor const &srcDesc,
-                     GLuint dstBuffer, BufferDescriptor const &dstDesc,
-                     GLuint duBuffer,  BufferDescriptor const &duDesc,
-                     GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-                     GLuint duuBuffer, BufferDescriptor const &duuDesc,
-                     GLuint duvBuffer, BufferDescriptor const &duvDesc,
-                     GLuint dvvBuffer, BufferDescriptor const &dvvDesc,
+    bool EvalPatches(ID srcBuffer, BufferDescriptor const &srcDesc,
+                     ID dstBuffer, BufferDescriptor const &dstDesc,
+                     ID duBuffer,  BufferDescriptor const &duDesc,
+                     ID dvBuffer,  BufferDescriptor const &dvDesc,
+                     ID duuBuffer, BufferDescriptor const &duuDesc,
+                     ID duvBuffer, BufferDescriptor const &duvDesc,
+                     ID dvvBuffer, BufferDescriptor const &dvvDesc,
                      int numPatchCoords,
-                     GLuint patchCoordsBuffer,
+                     ID patchCoordsBuffer,
                      const PatchArrayVector &patchArrays,
-                     GLuint patchIndexBuffer,
-                     GLuint patchParamsBuffer) const;
+                     ID patchIndexBuffer,
+                     ID patchParamsBuffer) const;
 
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
@@ -2128,8 +2114,8 @@ public:
     static void Synchronize(void *kernel);
 
 private:
-    GLuint _srcBufferTexture;
-    GLuint _patchArraysUBO;
+    ID _srcBufferTexture;
+    ID _patchArraysUBO;
     bool _interleavedDerivativeBuffers;
 
     struct _StencilKernel {
@@ -2143,21 +2129,21 @@ private:
                      BufferDescriptor const &duvDesc,
                      BufferDescriptor const &dvvDesc,
                      bool interleavedDerivativeBuffers);
-        GLuint program;
-        GLint uniformSrcBufferTexture;
-        GLint uniformSrcOffset;    // src buffer offset (in elements)
+        ID program;
+        LOCATION uniformSrcBufferTexture;
+        LOCATION uniformSrcOffset;    // src buffer offset (in elements)
 
-        GLint uniformSizesTexture;
-        GLint uniformOffsetsTexture;
-        GLint uniformIndicesTexture;
-        GLint uniformWeightsTexture;
-        GLint uniformDuWeightsTexture;
-        GLint uniformDvWeightsTexture;
-        GLint uniformDuuWeightsTexture;
-        GLint uniformDuvWeightsTexture;
-        GLint uniformDvvWeightsTexture;
-        GLint uniformStart;     // range
-        GLint uniformEnd;
+        LOCATION uniformSizesTexture;
+        LOCATION uniformOffsetsTexture;
+        LOCATION uniformIndicesTexture;
+        LOCATION uniformWeightsTexture;
+        LOCATION uniformDuWeightsTexture;
+        LOCATION uniformDvWeightsTexture;
+        LOCATION uniformDuuWeightsTexture;
+        LOCATION uniformDuvWeightsTexture;
+        LOCATION uniformDvvWeightsTexture;
+        LOCATION uniformStart;     // range
+        LOCATION uniformEnd;
     } _stencilKernel;
 
     struct _PatchKernel {
@@ -2171,13 +2157,13 @@ private:
                      BufferDescriptor const &duvDesc,
                      BufferDescriptor const &dvvDesc,
                      bool interleavedDerivativeBuffers);
-        GLuint program;
-        GLint uniformSrcBufferTexture;
-        GLint uniformSrcOffset;    // src buffer offset (in elements)
+        ID program;
+        LOCATION uniformSrcBufferTexture;
+        LOCATION uniformSrcOffset;    // src buffer offset (in elements)
 
-        GLint uniformPatchArraysUBOBinding;
-        GLint uniformPatchParamTexture;
-        GLint uniformPatchIndexTexture;
+        LOCATION uniformPatchArraysUBOBinding;
+        LOCATION uniformPatchParamTexture;
+        LOCATION uniformPatchIndexTexture;
     } _patchKernel;
 
 };

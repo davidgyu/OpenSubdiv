@@ -1,28 +1,11 @@
 ..
      Copyright 2013 Pixar
 
-     Licensed under the Apache License, Version 2.0 (the "Apache License")
-     with the following modification; you may not use this file except in
-     compliance with the Apache License and the following modification to it:
-     Section 6. Trademarks. is deleted and replaced with:
-
-     6. Trademarks. This License does not grant permission to use the trade
-        names, trademarks, service marks, or product names of the Licensor
-        and its affiliates, except as required to comply with Section 4(c) of
-        the License and to reproduce the content of the NOTICE file.
-
-     You may obtain a copy of the Apache License at
-
-         http://www.apache.org/licenses/LICENSE-2.0
-
-     Unless required by applicable law or agreed to in writing, software
-     distributed under the Apache License with the above modification is
-     distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied. See the Apache License for the specific
-     language governing permissions and limitations under the Apache License.
+     Licensed under the terms set forth in the LICENSE.txt file available at
+     https://opensubdiv.org/license.
 
 
-3.0 - 3.6 Release Notes
+3.0 - 3.7 Release Notes
 -----------------------
 
 .. contents::
@@ -30,6 +13,24 @@
    :backlinks: none
 
 ----
+
+Release 3.7
+~~~~~~~~~~~
+
+Release 3.7.0 - October 2025
+============================
+
+Release 3.7.0 is a minor release containing bug fixes and other updates.
+
+**Changes**
+    - OpenSubdiv is now licensed under the Tomorrow Open Source Technology license. This is a renaming of the license, but the terms and conditions are the same as before.
+    - Osd classes which interface with GL no longer include platform GL headers (GitHub #1364)
+    - Improved Bfr::Paramaterization conversions to sub-face coordinates (GitHub #1366)
+    - Improved minimal Bfr::Tessellation patterns for quads (GitHub #1372)
+
+**Bug Fixes**
+    - Fixed build errors on some platforms by removing use of GL types from headers (GitHub #1364)
+    - Fixed build_osd.py to improve compatibility with recent versions of CMake and Python (GitHub #1371, #1373)
 
 Release 3.6
 ~~~~~~~~~~~

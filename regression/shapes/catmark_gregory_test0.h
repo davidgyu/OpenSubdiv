@@ -1,3 +1,10 @@
+//
+//   Copyright 2013 Pixar
+//
+//   Licensed under the terms set forth in the LICENSE.txt file available at
+//   https://opensubdiv.org/license.
+//
+
 static const std::string catmark_gregory_test0 = std::string(
 "# This file uses centimeters as units for non-parametric coordinates.\n"
 "v -0.500000 0.204097 -0.500000\n"

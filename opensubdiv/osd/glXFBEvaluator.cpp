@@ -1,25 +1,8 @@
 //
 //   Copyright 2015 Pixar
 //
-//   Licensed under the Apache License, Version 2.0 (the "Apache License")
-//   with the following modification; you may not use this file except in
-//   compliance with the Apache License and the following modification to it:
-//   Section 6. Trademarks. is deleted and replaced with:
-//
-//   6. Trademarks. This License does not grant permission to use the trade
-//      names, trademarks, service marks, or product names of the Licensor
-//      and its affiliates, except as required to comply with Section 4(c) of
-//      the License and to reproduce the content of the NOTICE file.
-//
-//   You may obtain a copy of the Apache License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the Apache License with the above modification is
-//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//   KIND, either express or implied. See the Apache License for the specific
-//   language governing permissions and limitations under the Apache License.
+//   Licensed under the terms set forth in the LICENSE.txt file available at
+//   https://opensubdiv.org/license.
 //
 
 #include "glLoader.h"
@@ -475,16 +458,16 @@ bindTexture(GLint sampler, GLuint texture, int unit) {
 
 bool
 GLXFBEvaluator::EvalStencils(
-    GLuint srcBuffer, BufferDescriptor const &srcDesc,
-    GLuint dstBuffer, BufferDescriptor const &dstDesc,
-    GLuint duBuffer,  BufferDescriptor const &duDesc,
-    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-    GLuint sizesBuffer,
-    GLuint offsetsBuffer,
-    GLuint indicesBuffer,
-    GLuint weightsBuffer,
-    GLuint duWeightsBuffer,
-    GLuint dvWeightsBuffer,
+    ID srcBuffer, BufferDescriptor const &srcDesc,
+    ID dstBuffer, BufferDescriptor const &dstDesc,
+    ID duBuffer,  BufferDescriptor const &duDesc,
+    ID dvBuffer,  BufferDescriptor const &dvDesc,
+    ID sizesBuffer,
+    ID offsetsBuffer,
+    ID indicesBuffer,
+    ID weightsBuffer,
+    ID duWeightsBuffer,
+    ID dvWeightsBuffer,
     int start, int end) const {
 
     return EvalStencils(srcBuffer, srcDesc,
@@ -503,22 +486,22 @@ GLXFBEvaluator::EvalStencils(
 
 bool
 GLXFBEvaluator::EvalStencils(
-    GLuint srcBuffer, BufferDescriptor const &srcDesc,
-    GLuint dstBuffer, BufferDescriptor const &dstDesc,
-    GLuint duBuffer,  BufferDescriptor const &duDesc,
-    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-    GLuint duuBuffer, BufferDescriptor const &duuDesc,
-    GLuint duvBuffer, BufferDescriptor const &duvDesc,
-    GLuint dvvBuffer, BufferDescriptor const &dvvDesc,
-    GLuint sizesTexture,
-    GLuint offsetsTexture,
-    GLuint indicesTexture,
-    GLuint weightsTexture,
-    GLuint duWeightsTexture,
-    GLuint dvWeightsTexture,
-    GLuint duuWeightsTexture,
-    GLuint duvWeightsTexture,
-    GLuint dvvWeightsTexture,
+    ID srcBuffer, BufferDescriptor const &srcDesc,
+    ID dstBuffer, BufferDescriptor const &dstDesc,
+    ID duBuffer,  BufferDescriptor const &duDesc,
+    ID dvBuffer,  BufferDescriptor const &dvDesc,
+    ID duuBuffer, BufferDescriptor const &duuDesc,
+    ID duvBuffer, BufferDescriptor const &duvDesc,
+    ID dvvBuffer, BufferDescriptor const &dvvDesc,
+    ID sizesTexture,
+    ID offsetsTexture,
+    ID indicesTexture,
+    ID weightsTexture,
+    ID duWeightsTexture,
+    ID dvWeightsTexture,
+    ID duuWeightsTexture,
+    ID duvWeightsTexture,
+    ID dvvWeightsTexture,
     int start, int end) const {
 
     if (!_stencilKernel.program) return false;
@@ -684,15 +667,15 @@ GLXFBEvaluator::EvalStencils(
 
 bool
 GLXFBEvaluator::EvalPatches(
-    GLuint srcBuffer, BufferDescriptor const &srcDesc,
-    GLuint dstBuffer, BufferDescriptor const &dstDesc,
-    GLuint duBuffer,  BufferDescriptor const &duDesc,
-    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
+    ID srcBuffer, BufferDescriptor const &srcDesc,
+    ID dstBuffer, BufferDescriptor const &dstDesc,
+    ID duBuffer,  BufferDescriptor const &duDesc,
+    ID dvBuffer,  BufferDescriptor const &dvDesc,
     int numPatchCoords,
-    GLuint patchCoordsBuffer,
+    ID patchCoordsBuffer,
     const PatchArrayVector &patchArrays,
-    GLuint patchIndexTexture,
-    GLuint patchParamTexture) const {
+    ID patchIndexTexture,
+    ID patchParamTexture) const {
 
     return EvalPatches(srcBuffer, srcDesc,
                        dstBuffer, dstDesc,
@@ -709,18 +692,18 @@ GLXFBEvaluator::EvalPatches(
 
 bool
 GLXFBEvaluator::EvalPatches(
-    GLuint srcBuffer, BufferDescriptor const &srcDesc,
-    GLuint dstBuffer, BufferDescriptor const &dstDesc,
-    GLuint duBuffer,  BufferDescriptor const &duDesc,
-    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
-    GLuint duuBuffer, BufferDescriptor const &duuDesc,
-    GLuint duvBuffer, BufferDescriptor const &duvDesc,
-    GLuint dvvBuffer, BufferDescriptor const &dvvDesc,
+    ID srcBuffer, BufferDescriptor const &srcDesc,
+    ID dstBuffer, BufferDescriptor const &dstDesc,
+    ID duBuffer,  BufferDescriptor const &duDesc,
+    ID dvBuffer,  BufferDescriptor const &dvDesc,
+    ID duuBuffer, BufferDescriptor const &duuDesc,
+    ID duvBuffer, BufferDescriptor const &duvDesc,
+    ID dvvBuffer, BufferDescriptor const &dvvDesc,
     int numPatchCoords,
-    GLuint patchCoordsBuffer,
+    ID patchCoordsBuffer,
     const PatchArrayVector &patchArrays,
-    GLuint patchIndexTexture,
-    GLuint patchParamTexture) const {
+    ID patchIndexTexture,
+    ID patchParamTexture) const {
 
     bool deriv1 = (duDesc.length > 0 || dvDesc.length > 0);
     bool deriv2 = (duuDesc.length > 0 || duvDesc.length > 0 || dvvDesc.length > 0);

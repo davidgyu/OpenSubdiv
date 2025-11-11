@@ -1,25 +1,8 @@
 //
 //   Copyright 2021 Pixar
 //
-//   Licensed under the Apache License, Version 2.0 (the "Apache License")
-//   with the following modification; you may not use this file except in
-//   compliance with the Apache License and the following modification to it:
-//   Section 6. Trademarks. is deleted and replaced with:
-//
-//   6. Trademarks. This License does not grant permission to use the trade
-//      names, trademarks, service marks, or product names of the Licensor
-//      and its affiliates, except as required to comply with Section 4(c) of
-//      the License and to reproduce the content of the NOTICE file.
-//
-//   You may obtain a copy of the Apache License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the Apache License with the above modification is
-//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//   KIND, either express or implied. See the Apache License for the specific
-//   language governing permissions and limitations under the Apache License.
+//   Licensed under the terms set forth in the LICENSE.txt file available at
+//   https://opensubdiv.org/license.
 //
 
 #include "../bfr/tessellation.h"
@@ -434,16 +417,15 @@ namespace {
         //  over the integer range [0 .. M*N] where M and N are the resolution
         //  (number of edges) of the inner and outer rings respectively.
         //
-        //  Note that the current implementation expects the faces at the
+        //  Note that the original implementation required the faces at the
         //  ends to be "split", i.e. a diagonal edge created between the
         //  first/last points of the inner and outer rings at both ends.
-        //  It is possible that this will later be relaxed (allowing an
-        //  unsplit quad at the corner to be generated), as is currently
-        //  the case with uniform strips.  In the meantime, the caller is
-        //  expected to explicitly request split corners to make it clear
-        //  where they need to adapt later.
+        //  This has been adapted to allow the end faces to be left whole
+        //  (potentially quads) but only under limited circumstances: only
+        //  quad topology supports un-split faces at the ends, and both end
+        //  faces must be treated the same (avoiding symmetry issues).
         //
-        assert(splitFirstFace && splitLastFace);
+        int allInnerEdges = innerEdges + 2 - splitFirstFace - splitLastFace;
 
         int M = innerEdges + (quadTopology ? 2 : 3);
         int N = outerEdges;
@@ -454,7 +436,7 @@ namespace {
         int dtMin = std::min(dtInner, dtOuter);
         int dtMax = std::max(dtInner, dtOuter);
 
-        //  Use larger slope when M ~= N to accomodate tri insertion:
+        //  Use larger slope when M ~= N to accommodate tri insertion:
         int dtSlopeMax = ((dtMax / 2) < dtMin) ? (dtMin - 1) : (dtMax / 2);
 
         int tOuterLast   = dtOuter *  N;
@@ -494,8 +476,25 @@ namespace {
         int tInner0 = tInnerOffset + dtInner;
         int cInner0 = innerFirst;
 
-        int tInner1 = tInner0 + (innerEdges ? dtInner : 0);
-        int cInner1 = (innerEdges == 1) ? innerLast : (innerFirst + dInner);
+        int tInner1 = tInner0 + (allInnerEdges ? dtInner : 0);
+        int cInner1 = (allInnerEdges == 1) ? innerLast : (innerFirst + dInner);
+
+        //
+        //  Adjust variables defining extremities for the inner edges when
+        //  the first and/or last faces are not split (see notes above):
+        //
+        assert(splitFirstFace == splitLastFace);
+
+        if (!splitFirstFace) {
+            tInner0 = tInnerOffset;
+            tInner1 = tInner0 + dtInner;
+
+            cInner0 = outerPrev;
+            cInner1 = innerFirst;
+        }
+        if (!splitLastFace) {
+            tInnerLast += dtInner;
+        }
 
         //
         //  Walk forward through the strip, identifying each successive quad
@@ -505,13 +504,13 @@ namespace {
 
         int nFacetsExpected = 0;
         if (keepQuads) {
-            nFacetsExpected = std::max(innerEdges, outerEdges);
+            nFacetsExpected = std::max(allInnerEdges, outerEdges);
             //  Include a symmetric center triangle if any side is odd:
             if ((nFacetsExpected & 1) == 0) {
-                nFacetsExpected += (innerEdges & 1) || (outerEdges & 1);
+                nFacetsExpected += (allInnerEdges & 1) || (outerEdges & 1);
             }
         } else {
-            nFacetsExpected = innerEdges + outerEdges;
+            nFacetsExpected = allInnerEdges + outerEdges;
         }
 
         //  These help maintain symmetry where possible:
@@ -519,7 +518,7 @@ namespace {
         int  nFacetsMiddle  = nFacetsExpected & 1;
 
         int  middleFacet = nFacetsMiddle ? nFacetsLeading : -1;
-        bool middleQuad  = keepQuads && (outerEdges & 1) && (innerEdges & 1);
+        bool middleQuad  = keepQuads && (M & 1) && (N & 1);
 
         //
         //  Assign all expected facets sequentially -- advancing references
@@ -648,7 +647,7 @@ class quad {
 public:
     //  Public methods for counting coords and facets:
     static int CountUniformFacets(int edgeRes, bool triangulate);
-    static int CountSegmentedFacets(int const uvRes[], bool triangulate);
+    static int CountSegmentedFacets(int const outerRes[], bool triangulate);
     static int CountNonUniformFacets(int const outerRes[], int const uvRes[],
                                      bool triangulate);
 
@@ -669,7 +668,7 @@ public:
     //  Public methods for identifying and assigning facets:
     static int GetUniformFacets(int edgeRes, bool triangulate,
                                 FacetArray facets);
-    static int GetSegmentedFacets(int const uvRes[], bool triangulate,
+    static int GetSegmentedFacets(int const outerRes[], bool triangulate,
                                   FacetArray facets);
     static int GetNonUniformFacets(int const outerRes[], int const innerRes[],
                                    int nBoundaryEdges, bool triangulate,
@@ -806,11 +805,22 @@ quad::CountUniformFacets(int edgeRes, bool triangulate) {
 }
 
 inline int
-quad::CountSegmentedFacets(int const uvRes[], bool triangulate) {
+quad::CountSegmentedFacets(int const outerRes[], bool triangulate) {
 
-    //  WIP - may extend later to handle different opposing outer rates
-    assert((uvRes[0] == 1) || (uvRes[1] == 1));
-    return (uvRes[0] * uvRes[1]) << (int) triangulate;
+    //  Identify the direction with the non-unit rates:
+    int const * tRes = outerRes + ((outerRes[0] * outerRes[2]) == 1);
+
+    //  Triangulation is trivial. Otherwise facet count is the max rate,
+    //  but a center quad opposed by even edges is split for symmetry:
+    if (triangulate) {
+        return tRes[0] + tRes[2];
+    } else {
+        int nQuads  = std::min(tRes[0], tRes[2]);
+        int nFacets = std::max(tRes[0], tRes[2]);
+
+        bool splitQuad = (nQuads & 1) && ((nFacets & 1) == 0);
+        return nFacets + splitQuad;
+    }
 }
 
 int
@@ -1225,16 +1235,51 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
 }
 
 int
-quad::GetSegmentedFacets(int const innerRes[], bool triangulate,
+quad::GetSegmentedFacets(int const outerRes[], bool triangulate,
                          FacetArray facets) {
 
-    //  WIP - may extend later to handle different opposing outer rates
-    //        resulting in a non-uniform strip between the opposing edges
-    int uRes = innerRes[0];
-    int vRes = innerRes[1];
-    assert((uRes == 1) || (vRes == 1));
+    //  Deal with simple uniform cases separately:
+    if ((outerRes[0] == outerRes[2]) && (outerRes[1] == outerRes[3])) {
+        return getSingleStripFacets(outerRes[0], outerRes[1], 0,
+                                    triangulate, facets);
+    }
 
-    return getSingleStripFacets(uRes, vRes, 0, triangulate, facets);
+    //
+    //  Use the non-uniform tessellation patterns to get a mixed strip of
+    //  quads and tris that span the face. Remember that this expects the
+    //  inner set of edges to be purely interior, so offset the inner edge
+    //  counts accordingly.
+    //
+    int nFacetCoords = outerRes[0] + outerRes[1] + outerRes[2] + outerRes[3];
+
+    FacetStrip qStrip;
+    qStrip.quadTopology    = true;
+    qStrip.quadTriangulate = triangulate;
+    qStrip.splitFirstFace  = false;
+    qStrip.splitLastFace   = false;
+    qStrip.innerReversed   = true;
+    qStrip.includeLastFace = true;
+
+    if ((outerRes[0] != 1) || (outerRes[2] != 1)) {
+        qStrip.outerEdges = outerRes[0];
+        qStrip.innerEdges = outerRes[2] - 2;
+
+        qStrip.outerFirst = 0;
+        qStrip.outerLast  = qStrip.outerEdges;
+        qStrip.innerLast  = qStrip.outerLast + 1;
+        qStrip.innerFirst = nFacetCoords - 2;
+        qStrip.outerPrev  = nFacetCoords - 1;
+    } else {
+        qStrip.outerEdges = outerRes[1];
+        qStrip.innerEdges = outerRes[3] - 2;
+
+        qStrip.outerPrev  = 0;
+        qStrip.outerFirst = 1;
+        qStrip.outerLast  = 1 + qStrip.outerEdges;
+        qStrip.innerLast  = qStrip.outerLast + 1;
+        qStrip.innerFirst = nFacetCoords - 1;
+    }
+    return qStrip.connectNonUniformFacets(facets);
 }
 
 int
@@ -2136,7 +2181,8 @@ Tessellation::initializeRates(int numGivenRates, int const givenRates[]) {
             _innerRates[0] = (_outerRates[0] + _outerRates[2]) / 2;
             _innerRates[1] = (_outerRates[1] + _outerRates[3]) / 2;
         } else {
-            //  Infer single inner rate for non-quads (avg of edge rates)
+            //  Infer single inner rate for non-quads (avg of edge rates,
+            //  lower inner rates are preferred so not rounding up)
             _innerRates[0] = totalEdgeRate / N;
             _innerRates[1] = _innerRates[0];
         }
@@ -2183,26 +2229,31 @@ Tessellation::initializeInventoryForParamQuad(int sumOfEdgeRates) {
     } else {
         //
         //  For quads another low-res case is recognized when there are
-        //  no interior points, but the face has extra boundary points.
+        //  no interior points, but the face has opposing boundary points.
         //  Instead of introducing a center point, the face is considered
-        //  to be "segmented" into other faces that cover it without the
+        //  to be "segmented" into facets that span the face without the
         //  addition of any interior vertices.
-        //
-        //  This currently occurs for a pure 1 x M tessellation -- from
-        //  which a quad strip is generated -- but could be extended to
-        //  handle the 1 x M inner case with additional points on the
-        //  opposing edges.
         //
         if ((inner[0] > 1) && (inner[1] > 1)) {
             _numInteriorPoints = quad::CountInteriorCoords(_innerRates);
             _numFacets = quad::CountNonUniformFacets(_outerRates, _innerRates,
                                                      _triangulate);
-        } else if ((outer[0] == inner[0]) && (inner[0] == outer[2]) &&
-                   (outer[1] == inner[1]) && (inner[1] == outer[3])) {
+        } else if (((inner[0] == 1) && (outer[0] == 1) && (outer[2] == 1)) ||
+                   ((inner[1] == 1) && (outer[1] == 1) && (outer[3] == 1))) {
+            //  One direction constant 1, create facets spanning the face:
             _numInteriorPoints = 0;
-            _numFacets = quad::CountSegmentedFacets(_innerRates, _triangulate);
-            _segmentedFace = true;
+            _numFacets = quad::CountSegmentedFacets(_outerRates, _triangulate);
+
+            //  All rates 1 in any direction overrides the inner rate of the
+            //  other, so all outer rates 1 revert to the trivial quad:
+            if (sumOfEdgeRates == 4) {
+                _splitQuad = _triangulate;
+                _singleFace = !_triangulate;
+            } else {
+                _segmentedFace = true;
+            }
         } else {
+            //  Add center point in remaining cases where an inner rate is 1:
             _numInteriorPoints = 1;
             _numFacets = sumOfEdgeRates;
             _triangleFan = true;
@@ -2394,7 +2445,7 @@ Tessellation::GetFacets(int facetIndices[]) const {
             nFacets = quad::GetUniformFacets(_innerRates[0], _triangulate,
                                 facets);
         } else if (_segmentedFace) {
-            nFacets = quad::GetSegmentedFacets(_innerRates, _triangulate,
+            nFacets = quad::GetSegmentedFacets(_outerRates, _triangulate,
                                 facets);
         } else {
             nFacets = quad::GetNonUniformFacets(_outerRates, _innerRates,
