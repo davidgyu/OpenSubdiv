@@ -478,7 +478,6 @@ createGregoryBasis(OpenSubdiv::Far::PatchTable const & patchTable,
         }
 
         //Vertex const * verts = &edgeverts[offset];
-        static char buf[16];
         for (int i=0; i<4; ++i) {
             int vid = patch * 20 + i * 5;
 
@@ -488,16 +487,16 @@ createGregoryBasis(OpenSubdiv::Far::PatchTable const & patchTable,
             const float *Fp = vertexBuffer[cvs[i*5+3]].GetPos();
             const float *Fm = vertexBuffer[cvs[i*5+4]].GetPos();
 
-            snprintf(buf, 16, " P%d (%d)", i, vid);
-            g_font->Print3D(P, buf, 3);
-            snprintf(buf, 16, " Ep%d (%d)", i, vid+1);
-            g_font->Print3D(Ep, buf, 3);
-            snprintf(buf, 16, " Em%d (%d)", i, vid+2);
-            g_font->Print3D(Em, buf, 3);
-            snprintf(buf, 16, " Fp%d (%d)", i, vid+3);
-            g_font->Print3D(Fp, buf, 3);
-            snprintf(buf, 16, " Fm%d (%d)", i, vid+4);
-            g_font->Print3D(Fm, buf, 3);
+            g_font->Print3D(P, (" P" + std::to_string(i)
+                 + " (" + std::to_string(vid) + ")").c_str(), 3);
+            g_font->Print3D(Ep, (" Ep" + std::to_string(i)
+                 + " (" + std::to_string(vid+1) + ")").c_str(), 3);
+            g_font->Print3D(Em, (" Em" + std::to_string(i)
+                 + " (" + std::to_string(vid+2) + ")").c_str(), 3);
+            g_font->Print3D(Fp, (" Fp" + std::to_string(i)
+                 + " (" + std::to_string(vid+3) + ")").c_str(), 3);
+            g_font->Print3D(Fm, (" Fm" + std::to_string(i)
+                 + " (" + std::to_string(vid+4) + ")").c_str(), 3);
         }
     }
 
